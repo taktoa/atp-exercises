@@ -1,12 +1,34 @@
 --------------------------------------------------------------------------------
 
+--  Copyright 2018 Remy Goldschmidt
+--
+--  Licensed under the Apache License, Version 2.0 (the "License");
+--  you may not use this file except in compliance with the License.
+--  You may obtain a copy of the License at
+--
+--    http://www.apache.org/licenses/LICENSE-2.0
+--
+--  Unless required by applicable law or agreed to in writing, software
+--  distributed under the License is distributed on an "AS IS" BASIS,
+--  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+--  See the License for the specific language governing permissions and
+--  limitations under the License.
+
+--------------------------------------------------------------------------------
+
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE GADTs          #-}
 {-# LANGUAGE KindSignatures #-}
 
 --------------------------------------------------------------------------------
 
-module Main where
+-- |
+-- Automated theorem proving for the logic of bunched implications using
+-- the inverse method, as described in
+-- <https://www.cl.cam.ac.uk/~nk480/inverse-method-for-bi.pdf>.
+module ATP.InverseBI
+  ( module ATP.InverseBI -- FIXME: specific export list
+  ) where
 
 --------------------------------------------------------------------------------
 
@@ -43,10 +65,10 @@ data Bunches pv where
 
 --------------------------------------------------------------------------------
 
-data CanonicalBunchesKind
-  = CBKAny
-  | CBKAdditive
-  | CBKMultiplicative
+data CanonicalBunchesKind where
+  CBKAny            :: CanonicalBunchesKind
+  CBKAdditive       :: CanonicalBunchesKind
+  CBKMultiplicative :: CanonicalBunchesKind
 
 data CanonicalBunches (kind :: CanonicalBunchesKind) pv where
   CBAssumption     :: Formula pv
@@ -60,15 +82,15 @@ data CanonicalBunches (kind :: CanonicalBunchesKind) pv where
 
 -- |
 -- FIXME: doc
-canonicalizeBunches :: Bunches var -> CanonicalBunches 'CBKAny var
+canonicalizeBunches :: Bunches pv -> CanonicalBunches 'CBKAny pv
 canonicalizeBunches = undefined
 --   = convertToSets
 --     .> eliminateSingletons
 --   where
 --     convertToSets :: CanonicalBunches
 --
---     eliminateSingletons :: CanonicalBunches 'CBKAny var
---                         -> CanonicalBunches 'CBKAny var
+--     eliminateSingletons :: CanonicalBunches 'CBKAny pv
+--                         -> CanonicalBunches 'CBKAny pv
 --     eliminateSingletons = undefined
 
 --------------------------------------------------------------------------------
@@ -94,7 +116,7 @@ lubs = undefined
 
 --------------------------------------------------------------------------------
 
-data Constraint var where
+data Constraint pv where
   (:≡:)  :: !(Bunches pv)
          -> !(Bunches pv)
          -> Constraint pv
@@ -421,24 +443,24 @@ data Proofᴵ pv where
 
 --------------------------------------------------------------------------------
 
-type Database var = Map (Judgement var) (Set Int)
+type Database pv = Map (Judgement pv) (Set Int)
 
 --------------------------------------------------------------------------------
 
-growDatabase :: Database var -> Database var
+growDatabase :: Database pv -> Database pv
 growDatabase = undefined
 
-databaseContains :: Database var -> Judgement var -> Bool
+databaseContains :: Database pv -> Judgement pv -> Bool
 databaseContains = undefined
 
 --------------------------------------------------------------------------------
 
-checkProof :: Proofᴵ var -> Judgement var -> Maybe (Set (Constraint var))
+checkProof :: Proofᴵ pv -> Judgement pv -> Maybe (Set (Constraint pv))
 checkProof = undefined
 
 --------------------------------------------------------------------------------
 
-proveTheorem :: Judgement var -> Maybe (Proofᴵ var)
+proveTheorem :: Judgement pv -> Maybe (Proofᴵ pv)
 proveTheorem = undefined
 
 --------------------------------------------------------------------------------
