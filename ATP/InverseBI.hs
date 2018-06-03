@@ -16,9 +16,11 @@
 
 --------------------------------------------------------------------------------
 
-{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE GADTs          #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds          #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE GADTs              #-}
+{-# LANGUAGE KindSignatures     #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 --------------------------------------------------------------------------------
 
@@ -32,13 +34,26 @@ module ATP.InverseBI
 
 --------------------------------------------------------------------------------
 
-import           Data.Set        (Set)
-import qualified Data.Set        as Set
+import           Control.Monad.ST   (ST, runST)
 
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
+import           Data.Set           (Set)
+import qualified Data.Set           as Set
+
+import           Data.Map.Strict    (Map)
+import qualified Data.Map.Strict    as Map
+
+import           GHC.Generics       (Generic)
 
 import           Flow
+
+import           ATP.Utils.MHashMap (MHashMap)
+import qualified ATP.Utils.MHashMap as MHashMap
+
+import           ATP.Utils.MHashSet (MHashSet)
+import qualified ATP.Utils.MHashSet as MHashSet
+
+import           ATP.Utils.MBitmap  (MBitmap)
+import qualified ATP.Utils.MBitmap  as MBitmap
 
 --------------------------------------------------------------------------------
 
@@ -130,6 +145,8 @@ data Constraint pv where
 
 data Judgement pv where
   (:⊢:) :: !(Bunches pv) -> !(Formula pv) -> Judgement pv
+
+deriving instance (Generic pv) => Generic (Judgement pv)
 
 --------------------------------------------------------------------------------
 
@@ -443,14 +460,14 @@ data Proofᴵ pv where
 
 --------------------------------------------------------------------------------
 
-type Database pv = Map (Judgement pv) (Set Int)
+type MDatabase pv s = (MBitmap s, MHashSet s (Judgement pv))
 
 --------------------------------------------------------------------------------
 
-growDatabase :: Database pv -> Database pv
+growDatabase :: MDatabase pv s -> ST s ()
 growDatabase = undefined
 
-databaseContains :: Database pv -> Judgement pv -> Bool
+databaseContains :: MDatabase pv s -> Judgement pv -> ST s Bool
 databaseContains = undefined
 
 --------------------------------------------------------------------------------
