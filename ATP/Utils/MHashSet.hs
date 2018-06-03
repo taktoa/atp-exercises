@@ -54,8 +54,8 @@ import           Data.Hashable           (Hashable)
 import           Data.HashSet            (HashSet)
 import qualified Data.HashSet            as HashSet
 
-import           EqSat.Internal.MHashMap (MHashMap)
-import qualified EqSat.Internal.MHashMap as MHashMap
+import           ATP.Utils.MHashMap      (MHashMap)
+import qualified ATP.Utils.MHashMap      as MHashMap
 
 import           Flow                    ((.>))
 
