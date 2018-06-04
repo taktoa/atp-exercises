@@ -17,6 +17,7 @@
 --------------------------------------------------------------------------------
 
 {-# LANGUAGE DataKinds          #-}
+{-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE GADTs              #-}
 {-# LANGUAGE KindSignatures     #-}
@@ -34,26 +35,32 @@ module ATP.InverseBI
 
 --------------------------------------------------------------------------------
 
-import           Control.Monad.ST   (ST, runST)
+import           Control.Monad
 
-import           Data.Set           (Set)
-import qualified Data.Set           as Set
+import           Control.Monad.ST    (ST, runST)
 
-import           Data.Map.Strict    (Map)
-import qualified Data.Map.Strict    as Map
+import           Data.Either
+import           Data.Maybe
 
-import           GHC.Generics       (Generic)
+import           Data.HashSet        (HashSet)
+import qualified Data.HashSet        as HashSet
 
-import           Flow
+import           Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
 
-import           ATP.Utils.MHashMap (MHashMap)
-import qualified ATP.Utils.MHashMap as MHashMap
+import           Data.Hashable       (Hashable)
+import           GHC.Generics        (Generic)
 
-import           ATP.Utils.MHashSet (MHashSet)
-import qualified ATP.Utils.MHashSet as MHashSet
+import           Flow                ((.>), (|>))
 
-import           ATP.Utils.MBitmap  (MBitmap)
-import qualified ATP.Utils.MBitmap  as MBitmap
+import           ATP.Utils.MHashMap  (MHashMap)
+import qualified ATP.Utils.MHashMap  as MHashMap
+
+import           ATP.Utils.MHashSet  (MHashSet)
+import qualified ATP.Utils.MHashSet  as MHashSet
+
+import           ATP.Utils.MBitmap   (MBitmap)
+import qualified ATP.Utils.MBitmap   as MBitmap
 
 --------------------------------------------------------------------------------
 
@@ -69,6 +76,11 @@ data Formula pv where
   (:∗:)    :: !(Formula pv) -> !(Formula pv) -> Formula pv
   (:-∗:)   :: !(Formula pv) -> !(Formula pv) -> Formula pv
 
+deriving instance (Generic  pv) => Generic  (Formula pv)
+deriving instance (Eq       pv) => Eq       (Formula pv)
+deriving instance ( Generic pv, Hashable pv
+                  ) => Hashable (Formula pv)
+
 --------------------------------------------------------------------------------
 
 data Bunches pv where
@@ -77,6 +89,11 @@ data Bunches pv where
   (:&:)      :: !(Bunches pv) -> !(Bunches pv) -> Bunches pv
   Øₐ         ::                                   Bunches pv
   (:|:)      :: !(Bunches pv) -> !(Bunches pv) -> Bunches pv
+
+deriving instance (Generic  pv) => Generic  (Bunches pv)
+deriving instance (Eq       pv) => Eq       (Bunches pv)
+deriving instance ( Generic pv, Hashable pv
+                  ) => Hashable (Bunches pv)
 
 --------------------------------------------------------------------------------
 
@@ -88,9 +105,9 @@ data CanonicalBunchesKind where
 data CanonicalBunches (kind :: CanonicalBunchesKind) pv where
   CBAssumption     :: Formula pv
                    -> CanonicalBunches any pv
-  CBAdditive       :: Set (CanonicalBunches 'CBKMultiplicative pv)
+  CBAdditive       :: HashSet (CanonicalBunches 'CBKMultiplicative pv)
                    -> CanonicalBunches 'CBKAdditive pv
-  CBMultiplicative :: Set (CanonicalBunches 'CBKAdditive pv)
+  CBMultiplicative :: HashSet (CanonicalBunches 'CBKAdditive pv)
                    -> CanonicalBunches 'CBKMultiplicative pv
   CBAny            :: CanonicalBunches any pv
                    -> CanonicalBunches 'CBKAny pv
@@ -126,7 +143,7 @@ canonicalizeBunches = undefined
 -- bound set contains at least one element @Σ'@ such that @Σ' ⊑ Σ@:
 --
 -- @∀ Σ . ((Δ ⊑ Σ) ∧ (Γ ⊑ Σ)) ⇒ (∃ Σ' ∈ lubs(Δ)(Γ) . Σ' ⊑ Σ)@
-lubs :: Bunches pv -> Bunches pv -> Set (Bunches pv)
+lubs :: Bunches pv -> Bunches pv -> HashSet (Bunches pv)
 lubs = undefined
 
 --------------------------------------------------------------------------------
@@ -143,10 +160,40 @@ data Constraint pv where
          -> !(Bunches pv)
          -> Constraint pv
 
+deriving instance (Generic  pv) => Generic  (Constraint pv)
+deriving instance (Eq       pv) => Eq       (Constraint pv)
+deriving instance ( Generic pv, Hashable pv
+                  ) => Hashable (Constraint pv)
+
+--------------------------------------------------------------------------------
+
 data Judgement pv where
   (:⊢:) :: !(Bunches pv) -> !(Formula pv) -> Judgement pv
 
-deriving instance (Generic pv) => Generic (Judgement pv)
+deriving instance (Generic  pv) => Generic  (Judgement pv)
+deriving instance (Eq       pv) => Eq       (Judgement pv)
+deriving instance ( Generic pv, Hashable pv
+                  ) => Hashable (Judgement pv)
+
+--------------------------------------------------------------------------------
+
+data ProofTokenᴵ where
+  PT_Initᴵ   :: ProofTokenᴵ
+  PT_Cᴵ      :: ProofTokenᴵ
+  PT_Eᴵ      :: ProofTokenᴵ
+  PT_SupLᴵ   :: ProofTokenᴵ
+  PT_SupR1ᴵ  :: ProofTokenᴵ
+  PT_SupR2ᴵ  :: ProofTokenᴵ
+  PT_AndRᴵ   :: ProofTokenᴵ
+  PT_AndL1ᴵ  :: ProofTokenᴵ
+  PT_AndL2ᴵ  :: ProofTokenᴵ
+  PT_OrR1ᴵ   :: ProofTokenᴵ
+  PT_OrR2ᴵ   :: ProofTokenᴵ
+  PT_OrLᴵ    :: ProofTokenᴵ
+  PT_StarLᴵ  :: ProofTokenᴵ
+  PT_StarRᴵ  :: ProofTokenᴵ
+  PT_MagicLᴵ :: ProofTokenᴵ
+  PT_MagicRᴵ :: ProofTokenᴵ
 
 --------------------------------------------------------------------------------
 
@@ -460,19 +507,155 @@ data Proofᴵ pv where
 
 --------------------------------------------------------------------------------
 
-type MDatabase pv s = (MBitmap s, MHashSet s (Judgement pv))
+subbunches :: Bunches pv -> [Bunches pv]
+subbunches = undefined
+
+replaceBunches
+  :: HashMap (Bunches pv) (Bunches pv)
+  -> Bunches pv
+  -> Bunches pv
+replaceBunches = undefined
 
 --------------------------------------------------------------------------------
 
-growDatabase :: MDatabase pv s -> ST s ()
-growDatabase = undefined
+newtype MDatabase s pv
+  = MDatabase (MHashSet s (Judgement pv))
+  deriving ()
 
-databaseContains :: MDatabase pv s -> Judgement pv -> ST s Bool
+insertDatabase
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv
+  -> Judgement pv
+  -> ST s ()
+insertDatabase (MDatabase mdb) = MHashSet.insert mdb
+
+forDatabase
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv
+  -> (Judgement pv -> ST s ())
+  -> ST s ()
+forDatabase (MDatabase mdb) = MHashSet.forM_ mdb
+
+--------------------------------------------------------------------------------
+
+applyInit :: (Eq pv, Hashable pv, Generic pv) => MDatabase s pv -> ST s ()
+applyInit mdb = do
+  undefined
+
+applyC
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyC mdb = do
+  mdb' <- MDatabase <$> MHashSet.new
+  forDatabase mdb $ \(γ :⊢: φ) -> do
+    let getAdditive (x :|: y) = Just (x, y)
+        getAdditive _         = Nothing
+    forM_ (mapMaybe getAdditive (subbunches γ)) $ \(δ1, δ2) -> do
+      forM_ (HashSet.toList (lubs δ1 δ2)) $ \δ -> do
+        let γ' = replaceBunches (HashMap.fromList [(δ1 :|: δ2, δ)]) γ
+        insertDatabase mdb' (γ' :⊢: φ)
+  forDatabase mdb' (insertDatabase mdb)
+
+applyE
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyE mdb = do
+  undefined
+
+applySupL
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applySupL mdb = do
+  undefined
+
+applySupR1
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applySupR1 mdb = do
+  undefined
+
+applySupR2
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applySupR2 mdb = do
+  undefined
+
+applyAndR
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyAndR mdb = do
+  undefined
+
+applyAndL1
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyAndL1 mdb = do
+  undefined
+
+applyAndL2
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyAndL2 mdb = do
+  undefined
+
+applyOrR1
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyOrR1 mdb = do
+  undefined
+
+applyOrR2
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyOrR2 mdb = do
+  undefined
+
+applyOrL
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyOrL mdb = do
+  undefined
+
+applyStarL
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyStarL mdb = do
+  undefined
+
+applyStarR
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyStarR mdb = do
+  undefined
+
+applyMagicL
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyMagicL mdb = do
+  undefined
+
+applyMagicR
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+applyMagicR mdb = do
+  undefined
+
+growDatabase
+  :: (Eq pv, Hashable pv, Generic pv)
+  => MDatabase s pv -> ST s ()
+growDatabase mdb = do
+  undefined
+
+databaseContains
+  :: (Eq pv, Hashable pv)
+  => MDatabase s pv
+  -> Judgement pv
+  -> ST s Bool
 databaseContains = undefined
 
 --------------------------------------------------------------------------------
 
-checkProof :: Proofᴵ pv -> Judgement pv -> Maybe (Set (Constraint pv))
+checkProof :: Proofᴵ pv -> Judgement pv -> Maybe (HashSet (Constraint pv))
 checkProof = undefined
 
 --------------------------------------------------------------------------------
